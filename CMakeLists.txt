@@ -22,7 +22,11 @@ set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} --maxrregcount=32)
 
 find_package(CUDNN REQUIRED)
 include_directories(${CUDNN_INCLUDE_DIR})
+set(CUDNN_LIBRARIES /usr/local/cuda/lib64/libcudnn.so /home/zhumh/code/china_railway/3rd_party/tensorrt/TensorRT-7.0.0.11/lib/libnvinfer.so.7.0.0)
 
+message("-----")
+message( ${CUDNN_LIBRARIES})
+message("-----")
 
 # compile
 file(GLOB tkdnn_CUSRC "src/kernels/*.cu" "src/sorting.cu")
@@ -36,7 +40,7 @@ cuda_add_library(kernels SHARED ${tkdnn_CUSRC})
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
 
-find_package(OpenCV REQUIRED)
+find_package(OpenCV 3.4.8 REQUIRED PATHS ../3rd_party/opencv)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOPENCV")
 
 # gives problems in cross-compiling, probably malformed cmake config
