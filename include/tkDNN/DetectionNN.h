@@ -176,6 +176,48 @@ class DetectionNN {
             }
         }
 
+        /**
+         * Method to get boundixg boxes and labels on a frame.
+         * 
+         * @param frames orginal frame to draw bounding box on.
+         */
+        void output(const int &cur_batches,  
+                    std::vector<std::vector<cv::Rect> > &vec_rects_,
+                    std::vector<std::vector<int> > &vec_classes_,
+                    std::vector<std::vector<float> > &vec_probs_) {
+            tk::dnn::box b;
+            int x0, w, x1, y0, h, y1;
+            float prob;
+            int objClass;
+            std::string det_class;
+
+            for(int bi=0; bi<cur_batches; ++bi){
+                std::vector<cv::Rect> rects;
+                std::vector<int> classes;
+                std::vector<float> probs;
+
+                for(int i=0; i<batchDetected[bi].size(); i++) { 
+                    b           = batchDetected[bi][i];
+                    x0   		= b.x;
+                    x1   		= b.x + b.w;
+                    y0   		= b.y;
+                    y1   		= b.y + b.h;
+                    objClass    = b.cl;
+                    prob        = b.prob;
+
+                    cv::Rect rect(x0, y0, b.w, b.h);
+                    rects.push_back(rect);
+
+                    classes.push_back(objClass);
+                    probs.push_back(prob);
+                }
+
+                vec_rects_.push_back(rects);
+                vec_classes_.push_back(classes);
+                vec_probs_.push_back(probs);
+            }
+        }
+
 };
 
 }}

@@ -22,7 +22,7 @@ set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} --maxrregcount=32)
 
 find_package(CUDNN REQUIRED)
 include_directories(${CUDNN_INCLUDE_DIR})
-set(CUDNN_LIBRARIES /usr/local/cuda/lib64/libcudnn.so /home/zhumh/code/china_railway/3rd_party/tensorrt/TensorRT-7.0.0.11/lib/libnvinfer.so.7.0.0)
+set(CUDNN_LIBRARIES /usr/local/cuda/lib64/libcudnn.so ${CMAKE_CURRENT_SOURCE_DIR}/../3rd_party/tensorrt/TensorRT-7.0.0.11/lib/libnvinfer.so.7.0.0)
 
 message("-----")
 message( ${CUDNN_LIBRARIES})
