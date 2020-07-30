@@ -146,6 +146,66 @@ void Yolo3Detection::postprocess(const int bi, const bool mAP){
     batchDetected.push_back(detected);
 }
 
+void Yolo3Detection::postprocess(const int bi, const bool mAP, const float &conf_thres, const float &nms_thres){
+    // std::cout << "bi conf_thres nms_thres: " << bi << " " << conf_thres << " " << nms_thres << std::endl;
+
+    //get yolo outputs
+    dnnType *rt_out[netRT->pluginFactory->n_yolos]; 
+    for(int i=0; i<netRT->pluginFactory->n_yolos; i++) 
+        rt_out[i] = (dnnType*)netRT->buffersRT[i+1] + netRT->buffersDIM[i+1].tot()*bi;
+
+    float x_ratio =  float(originalSize[bi].width) / float(netRT->input_dim.w);
+    float y_ratio =  float(originalSize[bi].height) / float(netRT->input_dim.h);
+
+    // compute dets
+    nDets = 0;
+    for(int i=0; i<netRT->pluginFactory->n_yolos; i++) {
+        yolo[i]->dstData = rt_out[i];
+        yolo[i]->computeDetections(dets, nDets, netRT->input_dim.w, netRT->input_dim.h, conf_thres);
+    }
+    tk::dnn::Yolo::mergeDetections(dets, nDets, classes, nms_thres);
+
+    // fill detected
+    detected.clear();
+    for(int j=0; j<nDets; j++) {
+        tk::dnn::Yolo::box b = dets[j].bbox;
+        int x0   = (b.x-b.w/2.);
+        int x1   = (b.x+b.w/2.);
+        int y0   = (b.y-b.h/2.);
+        int y1   = (b.y+b.h/2.);
+
+        // convert to image coords
+        x0 = x_ratio*x0;
+        x1 = x_ratio*x1;
+        y0 = y_ratio*y0;
+        y1 = y_ratio*y1;
+        
+        for(int c=0; c<classes; c++) {
+            if(dets[j].prob[c] >= confThreshold) {
+                int obj_class = c;
+                float prob = dets[j].prob[c];
+
+                tk::dnn::box res;
+                res.cl = obj_class;
+                res.prob = prob;
+                res.x = x0;
+                res.y = y0;
+                res.w = x1 - x0;
+                res.h = y1 - y0;
+
+                // FIXME: this shuld be useless
+                // if(mAP)
+                //     for(int c=0; c<classes; c++) 
+                //         res.probs.push_back(dets[j].prob[c]);
+
+                detected.push_back(res);
+            }
+        }
+
+    }
+    batchDetected.push_back(detected);
+}
+
 
 tk::dnn::Yolo* Yolo3Detection::getYoloLayer(int n) {
     if(n<3)

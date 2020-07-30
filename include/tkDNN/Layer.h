@@ -628,6 +628,7 @@ public:
     static const int MAX_DETECTIONS = 8192;
     static Yolo::detection *allocateDetections(int nboxes, int classes);
     static void             mergeDetections(Yolo::detection *dets, int ndets, int classes);
+    static void             mergeDetections(Yolo::detection *dets, int ndets, int classes, float nms_thres);
 };
 
 /**

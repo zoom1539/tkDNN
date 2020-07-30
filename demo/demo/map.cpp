@@ -87,21 +87,21 @@ int main(int argc, char *argv[])
 
     // instantiate detector
     tk::dnn::Yolo3Detection yolo;
-    tk::dnn::CenternetDetection cnet;
-    tk::dnn::MobilenetDetection mbnet;
+    // tk::dnn::CenternetDetection cnet;
+    // tk::dnn::MobilenetDetection mbnet;
     tk::dnn::DetectionNN *detNN;  
     int n_classes = classes;   
     switch(ntype){
         case 'y':
             detNN = &yolo;
             break;
-        case 'c':
-            detNN = &cnet;
-            break;
-        case 'm':
-            detNN = &mbnet;
-            n_classes++;
-            break;
+        // case 'c':
+        //     detNN = &cnet;
+        //     break;
+        // case 'm':
+        //     detNN = &mbnet;
+        //     n_classes++;
+        //     break;
         default:
             FatalError("Network type not allowed (3rd parameter)\n");
     }

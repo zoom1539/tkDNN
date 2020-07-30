@@ -255,4 +255,40 @@ void Yolo::mergeDetections(Yolo::detection *dets, int ndets, int classes) {
 
 }
 
+void Yolo::mergeDetections(Yolo::detection *dets, int ndets, int classes, float nms_thres) {
+    double nms_thresh = nms_thres;
+    int total = ndets;
+
+    int i, j, k;
+    k = total-1;
+    for(i = 0; i <= k; ++i){
+        if(dets[i].objectness == 0){
+            detection swap = dets[i];
+            dets[i] = dets[k];
+            dets[k] = swap;
+            --k;
+            --i;
+        }
+    }
+    total = k+1;
+
+    for(k = 0; k < classes; ++k){
+        for(i = 0; i < total; ++i){
+            dets[i].sort_class = k;
+        }
+        qsort(dets, total, sizeof(detection), yolo_nms_comparator);
+        for(i = 0; i < total; ++i){
+            if(dets[i].prob[k] == 0) continue;
+            box a = dets[i].bbox;
+            for(j = i+1; j < total; ++j){
+                box b = dets[j].bbox;
+                if (yolo_box_iou(a, b) > nms_thresh){
+                    dets[j].prob[k] = 0;
+                }
+            }
+        }
+    }
+
+}
+
 }}

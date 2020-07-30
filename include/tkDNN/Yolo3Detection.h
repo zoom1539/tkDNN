@@ -27,6 +27,7 @@ public:
     bool init(const std::string& tensor_path, const int n_classes=80, const int n_batches=1);
     void preprocess(cv::Mat &frame, const int bi=0);
     void postprocess(const int bi=0,const bool mAP=false);
+    void postprocess(const int bi,const bool mAP, const float &conf_thres, const float &nms_thres);
 };
 
 

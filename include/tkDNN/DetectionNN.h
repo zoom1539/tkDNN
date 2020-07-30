@@ -14,7 +14,7 @@
 
 #include "tkdnn.h"
 
-// #define OPENCV_CUDACONTRIB //if OPENCV has been compiled with CUDA and contrib.
+#define OPENCV_CUDACONTRIB //if OPENCV has been compiled with CUDA and contrib.
 
 #ifdef OPENCV_CUDACONTRIB
 #include <opencv2/cudawarping.hpp>
@@ -62,6 +62,7 @@ class DetectionNN {
          *            box are needed, as in some cases for the mAP calculation
          */
         virtual void postprocess(const int bi=0,const bool mAP=false) = 0;
+        virtual void postprocess(const int bi,const bool mAP, const float &conf_thres, const float &nms_thres) = 0;
 
     public:
         int classes = 0;
@@ -102,7 +103,11 @@ class DetectionNN {
                 FatalError("save_times set to true, but no valid ofstream given");
             if(cur_batches > nBatches)
                 FatalError("A batch size greater than nBatches cannot be used");
-
+            
+            //
+            clock_t start_time = clock();
+            std::cout << "cur_batches: " << cur_batches << std::endl;
+            
             originalSize.clear();
             if(TKDNN_VERBOSE) printCenteredTitle(" TENSORRT detection ", '=', 30); 
             {
@@ -117,6 +122,10 @@ class DetectionNN {
                 if(save_times) *times<<t_ns<<";";
             }
 
+            std::cout << "preprocess time: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << " s" << std::endl;
+       
+            start_time = clock();
+
             //do inference
             tk::dnn::dataDim_t dim = netRT->input_dim;
             dim.n = cur_batches;
@@ -130,6 +139,10 @@ class DetectionNN {
                 if(save_times) *times<<t_ns<<";";
             }
 
+            std::cout << "infer time: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << " s" << std::endl;
+
+            start_time = clock();
+
             batchDetected.clear();
             {
                 TKDNN_TSTART
@@ -138,6 +151,9 @@ class DetectionNN {
                 TKDNN_TSTOP
                 if(save_times) *times<<t_ns<<"\n";
             }
+
+            std::cout << "postprocess time: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << " s" << std::endl;
+
         }      
 
         /**
@@ -175,6 +191,121 @@ class DetectionNN {
                 }
             }
         }
+
+        /**
+         */
+        void find_conf_and_nms(const int &cam_id, 
+                               const std::map<int, float> &map_id_conf,
+                               const std::map<int, float> &map_id_nms, 
+                               float &conf_thres, 
+                               float &nms_thres)
+        {
+            std::map<int, float>::const_iterator it;
+
+            // conf
+            it = map_id_conf.find(cam_id);
+            if (it == map_id_conf.end())
+            {
+                conf_thres = 0.3;
+            }
+            else
+            {
+                conf_thres = it->second;
+            }
+            
+            // nms
+            it = map_id_nms.find(cam_id);
+            if (it == map_id_nms.end())
+            {
+                nms_thres = 0.45;
+            }
+            else
+            {
+                nms_thres = it->second;
+            }
+        }
+
+        /**
+         * This method performs the whole detection of the NN.
+         * 
+         * @param frames frames to run detection on.
+         * @param cur_batches number of batches to use in inference
+         * @param save_times if set to true, preprocess, inference and postprocess times 
+         *        are saved on a csv file, otherwise not.
+         * @param times pointer to the output stream where to write times
+         * @param mAP set to true only if all the probabilities for a bounding 
+         *            box are needed, as in some cases for the mAP calculation
+         */
+        void update(std::vector<cv::Mat>& frames, 
+                    const int cur_batches, 
+                    const std::vector<int> &cam_ids,
+                    const std::map<int, float> &map_id_conf,
+                    const std::map<int, float> &map_id_nms,
+                    bool save_times=false, 
+                    std::ofstream *times=nullptr, 
+                    const bool mAP=false){
+            if(save_times && times==nullptr)
+                FatalError("save_times set to true, but no valid ofstream given");
+            if(cur_batches > nBatches)
+                FatalError("A batch size greater than nBatches cannot be used");
+            
+            //
+            clock_t start_time = clock();
+            std::cout << "cur_batches: " << cur_batches << std::endl;
+            
+            originalSize.clear();
+            if(TKDNN_VERBOSE) printCenteredTitle(" TENSORRT detection ", '=', 30); 
+            {
+                TKDNN_TSTART
+                for(int bi=0; bi<cur_batches;++bi){
+                    if(!frames[bi].data)
+                        FatalError("No image data feed to detection");
+                    originalSize.push_back(frames[bi].size());
+                    preprocess(frames[bi], bi);    
+                }
+                TKDNN_TSTOP
+                if(save_times) *times<<t_ns<<";";
+            }
+
+            std::cout << "preprocess time: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << " s" << std::endl;
+       
+            start_time = clock();
+
+            //do inference
+            tk::dnn::dataDim_t dim = netRT->input_dim;
+            dim.n = cur_batches;
+            {
+                if(TKDNN_VERBOSE) dim.print();
+                TKDNN_TSTART
+                netRT->infer(dim, input_d);
+                TKDNN_TSTOP
+                if(TKDNN_VERBOSE) dim.print();
+                stats.push_back(t_ns);
+                if(save_times) *times<<t_ns<<";";
+            }
+
+            std::cout << "infer time: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << " s" << std::endl;
+
+            start_time = clock();
+
+            batchDetected.clear();
+            {
+                TKDNN_TSTART
+                for(int bi=0; bi<cur_batches;++bi)
+                {
+                    float conf_thres = 0.3;
+                    float nms_thres = 0.45;
+                    find_conf_and_nms(cam_ids[bi], map_id_conf, map_id_nms, conf_thres, nms_thres);
+
+                    postprocess(bi, mAP, conf_thres, nms_thres);
+                }
+                TKDNN_TSTOP
+                if(save_times) *times<<t_ns<<"\n";
+            }
+
+            std::cout << "postprocess time: " << (double)(clock() - start_time) / CLOCKS_PER_SEC << " s" << std::endl;
+
+        }      
 
         /**
          * Method to get boundixg boxes and labels on a frame.
