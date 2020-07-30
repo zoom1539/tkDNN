@@ -40,9 +40,12 @@ cuda_add_library(kernels SHARED ${tkdnn_CUSRC})
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
 
-find_package(OpenCV 4.4.0 REQUIRED PATHS ~/OPENCV/opencv/build)
-# find_package(OpenCV 3.4.8 REQUIRED PATHS ../3rd_party/opencv)
+# find_package(OpenCV 4.4.0 REQUIRED PATHS ~/OPENCV/opencv/build)
+find_package(OpenCV 3.4.8 REQUIRED PATHS ../3rd_party/opencv)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOPENCV")
+message("-----")
+message( ${OpenCV_INCLUDE_DIRS})
+message("-----")
 
 # gives problems in cross-compiling, probably malformed cmake config
 #find_package(yaml-cpp REQUIRED)
@@ -54,7 +57,7 @@ file(GLOB tkdnn_SRC "src/*.cpp")
 set(tkdnn_LIBS kernels ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES} ${CUDNN_LIBRARIES} ${OpenCV_LIBS} yaml-cpp)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include ${CUDA_INCLUDE_DIRS} ${OPENCV_INCLUDE_DIRS} ${NVINFER_INCLUDES})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include ${CUDA_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${NVINFER_INCLUDES})
 add_library(tkDNN SHARED ${tkdnn_SRC})
 target_link_libraries(tkDNN ${tkdnn_LIBS})
 
